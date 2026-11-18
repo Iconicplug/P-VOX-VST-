@@ -1,0 +1,33 @@
+name: Build P-Vox VST3
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    # Runner fijo con Visual Studio 2022 (windows-latest ya no garantiza VS 17 2022)
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $bundle = Get-ChildItem build -Recurse -Directory -Filter "*.vst3" | Select-Object -First 1
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item $bundle.FullName "dist/P-Vox.vst3" -Recurse
+          $dll = Get-ChildItem "dist/P-Vox.vst3" -Recurse -File -Filter "*.vst3" | Select-Object -First 1
+          Copy-Item $dll.FullName "dist/P-Vox.dll"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: P-Vox-VST3-Windows
+          path: dist/
